@@ -1,9 +1,11 @@
 # Importing JDK and copying required files
 FROM eclipse-temurin:19-jdk AS build
 WORKDIR /app
+
 COPY pom.xml .
 COPY src src
 COPY config.properties .
+COPY www .
 
 # Copy Maven wrapper
 COPY mvnw .
@@ -20,5 +22,7 @@ VOLUME /tmp
 # Copy the JAR from the build stage
 COPY --from=build /app/target/*.jar app.jar
 COPY --from=build /app/config.properties config.properties
+COPY --from=build /app/www www
+
 ENTRYPOINT ["java","-jar","/app.jar"]
 EXPOSE 8080
