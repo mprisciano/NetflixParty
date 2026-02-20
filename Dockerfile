@@ -5,7 +5,7 @@ WORKDIR /app
 COPY pom.xml .
 COPY src src
 COPY config.properties .
-COPY www .
+COPY www www
 
 # Copy Maven wrapper
 COPY mvnw .
