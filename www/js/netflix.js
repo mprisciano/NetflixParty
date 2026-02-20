@@ -16,10 +16,14 @@ function NetflixPartyEmbeddedSource() {
     Globals.GATEWAY = new WebSocket("wss://" + RESOURCE_URL + "/gateway");
 
     function getVideoPlayer() {
-        var e = window.netflix.appContext.state.playerApp.getAPI().videoPlayer,
-            t = e.getAllPlayerSessionIds().find((val => val.includes("watch")));
-        return e.getVideoPlayerBySessionId(t);
-    };
+        try {
+            let e = window.netflix.appContext.state.playerApp.getAPI().videoPlayer;
+            let t = e.getAllPlayerSessionIds().find((val => val.includes("watch")));
+            return e.getVideoPlayerBySessionId(t);
+        } catch (e) {
+            return undefined;
+        }
+    }
 
     const STYLESHEET_RULES = `
     input[type=text] {
