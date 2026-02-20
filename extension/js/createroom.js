@@ -1,4 +1,4 @@
-const RESOURCE_URL = "netflixparty.voidtech.de"; //Make sure this URL has no protocol. Just the domain.
+const RESOURCE_URL = "netflixparty.onrender.com"; //Make sure this URL has no protocol. Just the domain.
 
 function showMessage(message) {
     document.getElementById("message").style.display = "block";
