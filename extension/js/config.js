@@ -1,1 +1,0 @@
-window.RESOURCE_URL = "netflixparty.xyz.com";
