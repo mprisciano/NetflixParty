@@ -3,6 +3,7 @@ FROM eclipse-temurin:19-jdk AS build
 WORKDIR /app
 COPY pom.xml .
 COPY src src
+COPY config.properties .
 
 # Copy Maven wrapper
 COPY mvnw .
