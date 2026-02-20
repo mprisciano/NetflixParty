@@ -1,21 +1,25 @@
 {
-    "name": "NetflixParty",
-    "description": "Watch Netflix with friends!",
-    "version": "1.0",
-    "manifest_version": 2,
-    "permissions": ["storage", "tabs", "activeTab"],
-    "browser_action": {
-        "default_popup": "html/popup.html",
-        "default_icon": "img/icon.png"
-    },
-    "icons": {
-        "128": "img/icon.png",
-        "16": "img/icon.png",
-        "48": "img/icon.png"
-    },
-    "content_scripts": [{
-        "matches": ["http://www.netflix.com/watch/*", "https://www.netflix.com/watch/*"],
-        "js": ["js/netflix-party-interface.js"]
-    }],
-    "web_accessible_resources": ["img/*.png", "js/*.js", "css/*.css", "html/*.html"]
+  "name": "NetflixParty",
+  "description": "Watch Netflix with friends!",
+  "version": "1.0",
+  "manifest_version": 3,
+  "permissions": ["storage", "tabs", "activeTab"],
+  "action": {
+    "default_popup": "html/popup.html",
+    "default_icon": "img/icon.png"
+  },
+  "icons": {
+    "128": "img/icon.png",
+    "16": "img/icon.png",
+    "48": "img/icon.png"
+  },
+  "content_scripts": [{
+    "matches": ["https://www.netflix.com/watch/*"],
+    "js": ["js/netflix-party-embedded.js"],
+    "world": "MAIN"
+  }],
+  "web_accessible_resources": [{
+    "resources": ["img/*.png", "js/*.js", "css/*.css", "html/*.html"],
+    "matches": ["https://www.netflix.com/*"]
+  }]
 }
