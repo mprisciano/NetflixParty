@@ -11,7 +11,7 @@ function NetflixPartyEmbeddedSource() {
         TYPING: false
     };
 
-    const RESOURCE_URL = "netflixparty.voidtech.de"; //Make sure this URL has no protocol. Just the domain.
+    const RESOURCE_URL = "netflixparty.onrender.com"; //Make sure this URL has no protocol. Just the domain.
 
     Globals.GATEWAY = new WebSocket("wss://" + RESOURCE_URL + "/gateway");
 
