@@ -15,7 +15,7 @@
   },
   "content_scripts": [{
     "matches": ["https://www.netflix.com/watch/*"],
-    "js": ["js/netflix-party-embedded.js"],
+    "js": ["js/config.js", "js/netflix-party-embedded.js"],
     "world": "MAIN"
   }],
   "web_accessible_resources": [{
