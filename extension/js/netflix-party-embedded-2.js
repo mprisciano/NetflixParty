@@ -281,104 +281,6 @@ const ConsoleColour = {
 
 const RESOURCE_URL = "netflixparty.onrender.com"; //Make sure this URL has no protocol. Just the domain.
 
-// ============================================================
-// WebRTC Voice
-// ============================================================
-const ICE_SERVERS = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-let localStream = null;
-let peerConnections = {};
-
-async function startVoiceCall() {
-    const callButton = document.getElementById("call-button");
-    callButton.style.backgroundColor = "#b20710";
-    callButton.textContent = "🔴 Talking...";
-
-    const video = document.querySelector("video");
-    if (video) video.volume = 0.2;
-
-    try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const pc = createPeerConnection("main");
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        sendGatewayMessage({
-            type: "voice-offer",
-            data: { roomID: Globals.ROOM_ID, user: getStoredValue("username"), offer: JSON.stringify(offer) }
-        });
-    } catch (err) {
-        console.error("Microphone access denied:", err);
-        stopVoiceCall();
-    }
-}
-
-function stopVoiceCall() {
-    const callButton = document.getElementById("call-button");
-    if (callButton) {
-        callButton.style.backgroundColor = "#e50914";
-        callButton.textContent = "📞 Call";
-    }
-
-    const video = document.querySelector("video");
-    if (video) video.volume = 1.0;
-
-    if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
-        localStream = null;
-    }
-
-    Object.values(peerConnections).forEach(pc => pc.close());
-    peerConnections = {};
-}
-
-function createPeerConnection(key) {
-    const pc = new RTCPeerConnection(ICE_SERVERS);
-    peerConnections[key] = pc;
-
-    pc.onicecandidate = (e) => {
-        if (e.candidate) {
-            sendGatewayMessage({
-                type: "voice-ice",
-                data: { roomID: Globals.ROOM_ID, user: getStoredValue("username"), candidate: JSON.stringify(e.candidate) }
-            });
-        }
-    };
-
-    pc.ontrack = (e) => {
-        const audio = new Audio();
-        audio.srcObject = e.streams[0];
-        audio.play();
-    };
-
-    return pc;
-}
-
-async function handleVoiceOffer(data) {
-    const pc = createPeerConnection(data.user);
-    await pc.setRemoteDescription(JSON.parse(data.offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    sendGatewayMessage({
-        type: "voice-answer",
-        data: { roomID: Globals.ROOM_ID, user: getStoredValue("username"), answer: JSON.stringify(answer) }
-    });
-}
-
-async function handleVoiceAnswer(data) {
-    const pc = peerConnections[data.user] || peerConnections["main"];
-    if (pc) await pc.setRemoteDescription(JSON.parse(data.answer));
-}
-
-async function handleVoiceIce(data) {
-    const pc = peerConnections[data.user] || peerConnections["main"];
-    if (pc) await pc.addIceCandidate(JSON.parse(data.candidate));
-}
-// ============================================================
-// End WebRTC Voice
-// ============================================================
-
 Globals.GATEWAY = new WebSocket("wss://" + RESOURCE_URL + "/gateway");
 
 function getVideoPlayer() {
@@ -716,8 +618,8 @@ function injectPage() {
     userButton.id = "usersettingsbutton";
     userButton.textContent = "⚙️ Settings";
     userButton.onclick = function() {
-        let modal = document.getElementById("modal");
-        modal.style.display = modal.style.display === "block" ? "none" : "block";
+    let modal = document.getElementById("modal");
+    modal.style.display = modal.style.display === "block" ? "none" : "block";
     };
 
     let wrapper = document.createElement("div");
@@ -778,23 +680,76 @@ function injectPage() {
     </div>
     <p class="typing-message typing" id="typing-message"><span>•</span><span>•</span><span>•</span> People are typing</p>
 `);
+    let mediaStream = null;
+    let audioContext = null;
+    let processor = null;
 
-    // ---- Call button listeners (WebRTC) ----
     const callButton = document.getElementById("call-button");
 
     callButton.addEventListener("mousedown", async () => {
-        await startVoiceCall();
+        callButton.style.backgroundColor = "#b20710";
+        callButton.textContent = "🔴 Talking...";
+
+        let video = document.querySelector("video");
+        if (video) video.volume = 0.2;
+
+        Gateway.send(JSON.stringify({
+            type: "voice-start",
+            data: { roomID: roomID, user: username }
+        }));
+
+        try {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioContext = new AudioContext();
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+
+            processor.onaudioprocess = (e) => {
+                const inputData = e.inputBuffer.getChannelData(0);
+                const buffer = new ArrayBuffer(inputData.length * 2);
+                const view = new Int16Array(buffer);
+                for (let i = 0; i < inputData.length; i++) {
+                    view[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                }
+                const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+
+                Gateway.send(JSON.stringify({
+                    type: "voice-chunk",
+                    data: { roomID: roomID, audio: base64 }
+                }));
+            };
+        } catch (err) {
+            console.error("Microphone access denied:", err);
+            callButton.style.backgroundColor = "#e50914";
+            callButton.textContent = "📞 Call";
+        }
     });
 
     callButton.addEventListener("mouseup", () => {
-        stopVoiceCall();
+        callButton.style.backgroundColor = "#e50914";
+        callButton.textContent = "📞 Call";
+
+        let video = document.querySelector("video");
+        if (video) video.volume = 1.0;
+
+        if (processor) { processor.disconnect(); processor = null; }
+        if (audioContext) { audioContext.close(); audioContext = null; }
+        if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+
+        Gateway.send(JSON.stringify({
+            type: "voice-stop",
+            data: { roomID: roomID, user: username }
+        }));
     });
 
     // Safety net in case mouse is released outside the button
     document.addEventListener("mouseup", () => {
-        if (localStream) stopVoiceCall();
+        if (mediaStream) callButton.dispatchEvent(new Event("mouseup"));
     });
-    // ---- End call button listeners ----
+    // end button
 
     //Make the typing thingy go away
     hideTypingMessage();
@@ -852,17 +807,6 @@ Globals.GATEWAY.onmessage = function(msg) {
         case "typing-update":
             updateTyping(message.data);
             break;
-        // ---- WebRTC voice signalling ----
-        case "voice-offer":
-            if (message.data.user !== getStoredValue("username")) handleVoiceOffer(message.data);
-            break;
-        case "voice-answer":
-            if (message.data.user !== getStoredValue("username")) handleVoiceAnswer(message.data);
-            break;
-        case "voice-ice":
-            if (message.data.user !== getStoredValue("username")) handleVoiceIce(message.data);
-            break;
-        // ---- End WebRTC voice signalling ----
     }
 }
 
